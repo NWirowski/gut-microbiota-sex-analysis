@@ -1,0 +1,321 @@
+---
+title: "Sociodemographic Analysis"
+author: "Natália Wirowski"
+date: "2025-10-16"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+## Importing metadata
+
+```{r}
+library(readr)
+metadata <- read_delim("~/data/metadata.txt", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE)
+```
+
+Qualitative variables to be used:
+Variable name - Label name - Levels
+mood - Group - 0: "Control", 2: "Bipolar", 3: "Depression"
+corpele - Skin Color - 1: "White", 2: "Non-White"
+sexo - Sex - 1: "Male", 2: "Female"
+ABEP - Socioeconomic status - 1: "Upper class", 2: "Lower class"
+histpsifam - History of familial psychiatric disorder - 1: "Yes", 0: "No"
+
+Quantitative variables to be used:
+idade - Age
+anosestudo - Years of schooling
+
+We need to make sure the categorical variables are labeled correctly, plus levels.
+
+## Labeling
+```{r}
+metadata$mood <- factor(metadata$mood,
+                        levels = c(0, 2, 3),
+                        labels = c("Control", "Bipolar", "Depression"))
+
+metadata$corpele <- factor(metadata$corpele,
+                           levels = c(1, 2),
+                           labels = c("White", "Non-White"))
+
+metadata$sexo <- factor(metadata$sexo,
+                        levels = c(1, 2),
+                        labels = c("Male", "Female"))
+
+metadata$ABEP <- factor(metadata$ABEP,
+                        levels = c(1, 2),
+                        labels = c("Upper class", "Lower class"))
+
+metadata$histpsifam <- factor(metadata$histpsifam,
+                              levels = c(1, 0), 
+                              labels = c("Yes", "No"))
+
+metadata$idade <- as.numeric(metadata$idade)
+metadata$anosestudo <- as.numeric(metadata$anosestudo)
+
+```
+
+## Assessing the normality of quantitative variables
+
+Descriptive statistics - Age
+
+```{r}
+mean(metadata$idade)  
+median(metadata$idade)
+sd(metadata$idade)
+```
+
+Descriptive statistics - Years of schooling
+
+```{r}
+mean(metadata$anosestudo)  
+median(metadata$anosestudo) 
+sd(metadata$anosestudo) 
+```
+Histogram - Age
+
+```{r}
+hist(metadata$idade)
+```
+
+
+```{r}
+breaks_seq <- seq(min(metadata$idade, na.rm = TRUE) - 0.5, 
+                  max(metadata$idade, na.rm = TRUE) + 0.5, 
+                  by = 1)
+
+hist(metadata$idade,
+     breaks = breaks_seq,
+     probability = TRUE,  
+     main = "Histogram of Age with Gaussian Curve",
+     xlab = "Age",
+     col = "skyblue",
+     border = "white",
+     xlim = c(25,40)) 
+
+# Adicionar curva normal
+mean_idade <- mean(metadata$idade, na.rm = TRUE)
+sd_idade <- sd(metadata$idade, na.rm = TRUE)
+curve(dnorm(x, mean = mean_idade, sd = sd_idade), 
+      col = "red", 
+      lwd = 2, 
+      add = TRUE)
+
+```
+Histogram - Years of schooling
+
+```{r}
+hist(metadata$anosestudo)
+```
+
+```{r}
+breaks_seq <- seq(min(metadata$anosestudo, na.rm = TRUE) - 0.5, 
+                  max(metadata$anosestudo, na.rm = TRUE) + 0.5, 
+                  by = 1)
+
+hist(metadata$anosestudo,
+     breaks = breaks_seq,
+     probability = TRUE,  
+     main = "Histogram of Years of Schooling",
+     xlab = "Years of Schooling",
+     col = "lightgreen",
+     border = "white",
+     xlim = c(0, 20))  # ajuste o eixo x se desejar
+
+mean_anos <- mean(metadata$anosestudo, na.rm = TRUE)
+sd_anos <- sd(metadata$anosestudo, na.rm = TRUE)
+curve(dnorm(x, mean = mean_anos, sd = sd_anos), 
+      col = "red", 
+      lwd = 2, 
+      add = TRUE)
+
+```
+## Parametric tests
+
+Mean and standard deviation
+```{r}
+library(tidyverse)
+mean_sd_table <- metadata %>%
+  group_by(mood) %>%
+  summarise(
+    mean_age = mean(idade),
+    sd_age = sd(idade),
+    mean_school = mean(anosestudo),
+    sd_school = sd(anosestudo)
+  )
+
+mean_sd_table
+```
+
+Total
+
+```{r}
+library(tidyverse)
+mean_sd_table2 <- metadata %>%
+  summarise(
+    mean_age = mean(idade),
+    sd_age = sd(idade),
+    mean_school = mean(anosestudo),
+    sd_school = sd(anosestudo)
+  )
+
+mean_sd_table2
+```
+
+
+## ANOVA
+```{r}
+anova_idade <- aov(idade ~ mood, data = metadata)
+summary(anova_idade)
+```
+
+```{r}
+anova_anos <- aov(anosestudo ~ mood, data = metadata)
+summary(anova_anos)
+```
+## Non Parametric tests
+
+Median and interquartile range
+
+```{r}
+median_iqr_table <- metadata %>%
+  group_by(mood) %>%
+  summarise(
+    median_age = median(idade, na.rm = TRUE),
+    IQR_age = sprintf("%.2f–%.2f",
+                      quantile(idade, 0.25, na.rm = TRUE),
+                      quantile(idade, 0.75, na.rm = TRUE)),
+    median_school = median(anosestudo, na.rm = TRUE),
+    IQR_school = sprintf("%.2f–%.2f",
+                         quantile(anosestudo, 0.25, na.rm = TRUE),
+                         quantile(anosestudo, 0.75, na.rm = TRUE))
+  )
+
+median_iqr_table
+```
+
+Total
+
+```{r}
+median_iqr_table2 <- metadata %>%
+  summarise(
+    median_age = median(idade, na.rm = TRUE),
+    IQR_age = sprintf("%.2f–%.2f",
+                      quantile(idade, 0.25, na.rm = TRUE),
+                      quantile(idade, 0.75, na.rm = TRUE)),
+    median_school = median(anosestudo, na.rm = TRUE),
+    IQR_school = sprintf("%.2f–%.2f",
+                         quantile(anosestudo, 0.25, na.rm = TRUE),
+                         quantile(anosestudo, 0.75, na.rm = TRUE))
+  )
+
+median_iqr_table2
+```
+
+
+## Kruskal-Wallis
+```{r}
+kruskal_idade <- kruskal.test(idade ~ mood, data = metadata)
+kruskal_idade
+```
+
+```{r}
+kruskal_anos <- kruskal.test(anosestudo ~ mood, data = metadata)
+kruskal_anos
+```
+## Categorical variables table
+
+Absolute and relative frequency table
+
+```{r}
+library(janitor)
+
+freq_table <- function(data, var) {
+  data %>%
+    tabyl({{ var }}, mood) %>%            
+    adorn_totals(where = c("row", "col")) %>%  
+    adorn_percentages(denominator = "col") %>% 
+    adorn_pct_formatting(digits = 1) %>%     
+    adorn_ns()                                 
+}
+
+
+tab_corpele   <- freq_table(metadata, corpele)
+tab_sexo      <- freq_table(metadata, sexo)
+tab_ABEP      <- freq_table(metadata, ABEP)
+tab_histpsifam <- freq_table(metadata, histpsifam)
+
+
+tab_corpele
+tab_sexo
+tab_ABEP
+tab_histpsifam
+
+```
+## Chi-square
+
+Age by mood
+```{r}
+tab_sexo <- table(metadata$sexo, metadata$mood)
+tab_sexo
+```
+
+```{r}
+chisq.test(tab_sexo)$expected
+```
+
+
+```{r}
+chisq.test(tab_sexo)
+fisher.test(tab_sexo)
+```
+Skin color by mood
+
+```{r}
+tab_corpele <- table(metadata$corpele, metadata$mood)
+tab_corpele
+```
+
+```{r}
+chisq.test(tab_corpele)$expected
+```
+
+```{r}
+chisq.test(tab_corpele)
+fisher.test(tab_corpele)
+```
+
+Socioeconomic status by mood
+
+```{r}
+tab_abep <- table(metadata$ABEP, metadata$mood)
+tab_abep
+```
+
+```{r}
+chisq.test(tab_abep)$expected
+```
+
+
+```{r}
+chisq.test(tab_abep)
+fisher.test(tab_abep)
+```
+History of familial psychiatric disorder by mood
+
+```{r}
+tab_hist <- table(metadata$histpsifam, metadata$mood)
+tab_hist
+```
+
+```{r}
+chisq.test(tab_hist)$expected
+```
+
+```{r}
+chisq.test(tab_hist)
+fisher.test(tab_hist)
+```
+
