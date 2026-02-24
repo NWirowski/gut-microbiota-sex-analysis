@@ -47,8 +47,7 @@ This folder contains scripts for the **supervised machine learning analysis** of
 | `ML_13models_MDDvsHC.py` | Trains and evaluates 13 ML models on Depression vs Control data. |
 | `ML_13models_MDvsHC.py` | Trains and evaluates 13 ML models on Mood Disorder vs Control data. |
 | `ML_MDvsHC_NoSex.py` | Highest-performing models (f1-score) excluding "sex" as a feature. |
-| `ROC_HistGradientBoosting.py` | Generates ROC curve figure for the best-performing **HistGradientBoosting** model. |
-| `ROC_GaussianNB.py` | Generates ROC curve figure for the best-performing **GaussianNB** model. |
+| `ROC_curve.py` | Generates ROC curve figure for the best-performing **HistGradientBoosting** and **GaussianNB** models. |
 
 ---
 
