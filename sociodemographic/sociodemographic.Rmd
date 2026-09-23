@@ -1,11 +1,12 @@
 ---
 title: "Sociodemographic Analysis"
 author: "Natália Wirowski"
-date: "2025-10-16"
+date: "2026-08-31"
 output:
-  word_document: default
   html_document:
     df_print: paged
+  pdf_document: default
+  word_document: default
 ---
 ## Importing metadata
 
@@ -18,23 +19,27 @@ metadata <- read_delim("~/data/metadata.txt",
 
 Qualitative variables to be used:
 Variable name - Label name - Levels
-mood - Group - 0: "Control", 2: "Bipolar", 3: "Depression"
+thdico - Group - 0: "Control", 1: "Mood Disorder"
 corpele - Skin Color - 1: "White", 2: "Non-White"
 sexo - Sex - 1: "Male", 2: "Female"
 ABEP - Socioeconomic status - 1: "Upper class", 2: "Lower class"
 histpsifam - History of familial psychiatric disorder - 1: "Yes", 0: "No"
+a20medicpsi - Use of psychiatric medication - 1: "Yes", 0: "No"
+antib - Use of antibiotics in the last monthn - 1: "Yes", 0: "No"
+suplem - Use of prebiotics, probiotics, or synbiotics in the last month - 1: "Yes", 0: "No"
 
 Quantitative variables to be used:
 idade - Age
 anosestudo - Years of schooling
+IMC - Body Mass Index
 
 We need to make sure the categorical variables are labeled correctly, plus levels.
 
 ## Labeling
 ```{r}
-metadata$mood <- factor(metadata$mood,
-                        levels = c(0, 2, 3),
-                        labels = c("Control", "Bipolar", "Depression"))
+metadata$thdico <- factor(metadata$thdico,
+                        levels = c(0, 1),
+                        labels = c("Control", "Mood Disorder"))
 
 metadata$corpele <- factor(metadata$corpele,
                            levels = c(1, 2),
@@ -52,8 +57,21 @@ metadata$histpsifam <- factor(metadata$histpsifam,
                               levels = c(1, 0), 
                               labels = c("Yes", "No"))
 
+metadata$a20medicpsi <- factor(metadata$a20medicpsi,
+                              levels = c(1, 0), 
+                              labels = c("Yes", "No"))
+
+metadata$antib <- factor(metadata$antib,
+                              levels = c(1, 0), 
+                              labels = c("Yes", "No"))
+
+metadata$suplem <- factor(metadata$suplem,
+                              levels = c(1, 0), 
+                              labels = c("Yes", "No"))
+
 metadata$idade <- as.numeric(metadata$idade)
 metadata$anosestudo <- as.numeric(metadata$anosestudo)
+metadata$IMC <- as.numeric(metadata$IMC)
 
 ```
 
@@ -74,6 +92,15 @@ mean(metadata$anosestudo)
 median(metadata$anosestudo) 
 sd(metadata$anosestudo) 
 ```
+
+Descriptive statistics - BMI
+
+```{r}
+mean(metadata$IMC)  
+median(metadata$IMC) 
+sd(metadata$IMC) 
+```
+
 Histogram - Age
 
 ```{r}
@@ -132,18 +159,64 @@ curve(dnorm(x, mean = mean_anos, sd = sd_anos),
       add = TRUE)
 
 ```
+
+Histogram - BMI
+
+
+```{r}
+hist(metadata$IMC)
+```
+
+```{r}
+range(metadata$IMC, na.rm = TRUE)
+```
+
+
+```{r}
+breaks_imc <- seq(
+  floor(min(metadata$IMC, na.rm = TRUE)) - 0.5,
+  ceiling(max(metadata$IMC, na.rm = TRUE)) + 0.5,
+  by = 1
+)
+
+hist(
+  metadata$IMC,
+  breaks = breaks_imc,
+  probability = TRUE,
+  main = "Histogram of BMI with Gaussian Curve",
+  xlab = "Body Mass Index",
+  col = "lightgreen",
+  border = "white"
+)
+
+mean_imc <- mean(metadata$IMC, na.rm = TRUE)
+sd_imc <- sd(metadata$IMC, na.rm = TRUE)
+
+curve(
+  dnorm(x, mean = mean_imc, sd = sd_imc),
+  col = "red",
+  lwd = 2,
+  add = TRUE
+)
+
+```
+
+
+
 ## Parametric tests
 
 Mean and standard deviation
 ```{r}
 library(tidyverse)
 mean_sd_table <- metadata %>%
-  group_by(mood) %>%
+  group_by(thdico) %>%
   summarise(
-    mean_age = mean(idade),
-    sd_age = sd(idade),
-    mean_school = mean(anosestudo),
-    sd_school = sd(anosestudo)
+    mean_age = mean(idade, na.rm = TRUE),
+    sd_age = sd(idade, na.rm = TRUE),
+    mean_school = mean(anosestudo, na.rm = TRUE),
+    sd_school = sd(anosestudo, na.rm = TRUE),
+    mean_BMI = mean(IMC, na.rm = TRUE),
+    sd_BMI = sd(IMC, na.rm = TRUE)
   )
 
 mean_sd_table
@@ -152,28 +225,27 @@ mean_sd_table
 Total
 
 ```{r}
-library(tidyverse)
 mean_sd_table2 <- metadata %>%
   summarise(
-    mean_age = mean(idade),
-    sd_age = sd(idade),
-    mean_school = mean(anosestudo),
-    sd_school = sd(anosestudo)
+    mean_age = mean(idade, na.rm = TRUE),
+    sd_age = sd(idade, na.rm = TRUE),
+    mean_school = mean(anosestudo, na.rm = TRUE),
+    sd_school = sd(anosestudo, na.rm = TRUE),
+    mean_BMI = mean(IMC, na.rm = TRUE),
+    sd_BMI = sd(IMC, na.rm = TRUE)
   )
 
 mean_sd_table2
 ```
 
 
-## ANOVA
+## t test
 ```{r}
-anova_idade <- aov(idade ~ mood, data = metadata)
-summary(anova_idade)
-```
+t.test(idade ~ thdico, data = metadata)
 
-```{r}
-anova_anos <- aov(anosestudo ~ mood, data = metadata)
-summary(anova_anos)
+t.test(anosestudo ~ thdico, data = metadata)
+
+t.test(IMC ~ thdico, data = metadata)
 ```
 ## Non Parametric tests
 
@@ -181,16 +253,26 @@ Median and interquartile range
 
 ```{r}
 median_iqr_table <- metadata %>%
-  group_by(mood) %>%
+  group_by(thdico) %>%
   summarise(
     median_age = median(idade, na.rm = TRUE),
-    IQR_age = sprintf("%.2f–%.2f",
-                      quantile(idade, 0.25, na.rm = TRUE),
-                      quantile(idade, 0.75, na.rm = TRUE)),
+    IQR_age = sprintf(
+      "%.2f–%.2f",
+      quantile(idade, 0.25, na.rm = TRUE),
+      quantile(idade, 0.75, na.rm = TRUE)
+    ),
     median_school = median(anosestudo, na.rm = TRUE),
-    IQR_school = sprintf("%.2f–%.2f",
-                         quantile(anosestudo, 0.25, na.rm = TRUE),
-                         quantile(anosestudo, 0.75, na.rm = TRUE))
+    IQR_school = sprintf(
+      "%.2f–%.2f",
+      quantile(anosestudo, 0.25, na.rm = TRUE),
+      quantile(anosestudo, 0.75, na.rm = TRUE)
+    ),
+    median_IMC = median(IMC, na.rm = TRUE),
+    IQR_IMC = sprintf(
+      "%.2f–%.2f",
+      quantile(IMC, 0.25, na.rm = TRUE),
+      quantile(IMC, 0.75, na.rm = TRUE)
+    )
   )
 
 median_iqr_table
@@ -200,31 +282,49 @@ Total
 
 ```{r}
 median_iqr_table2 <- metadata %>%
-  summarise(
-    median_age = median(idade, na.rm = TRUE),
-    IQR_age = sprintf("%.2f–%.2f",
-                      quantile(idade, 0.25, na.rm = TRUE),
-                      quantile(idade, 0.75, na.rm = TRUE)),
-    median_school = median(anosestudo, na.rm = TRUE),
-    IQR_school = sprintf("%.2f–%.2f",
-                         quantile(anosestudo, 0.25, na.rm = TRUE),
-                         quantile(anosestudo, 0.75, na.rm = TRUE))
-  )
+    summarise(
+      median_age = median(idade, na.rm = TRUE),
+      IQR_age = sprintf(
+        "%.2f–%.2f",
+        quantile(idade, 0.25, na.rm = TRUE),
+        quantile(idade, 0.75, na.rm = TRUE)
+      ),
+      median_school = median(anosestudo, na.rm = TRUE),
+      IQR_school = sprintf(
+        "%.2f–%.2f",
+        quantile(anosestudo, 0.25, na.rm = TRUE),
+        quantile(anosestudo, 0.75, na.rm = TRUE)
+      ),
+      median_IMC = median(IMC, na.rm = TRUE),
+      IQR_IMC = sprintf(
+        "%.2f–%.2f",
+        quantile(IMC, 0.25, na.rm = TRUE),
+        quantile(IMC, 0.75, na.rm = TRUE)
+      )
+    )
 
 median_iqr_table2
 ```
 
 
-## Kruskal-Wallis
+## Mann-Whitney (Wilcoxon rank-sum test)
 ```{r}
-kruskal_idade <- kruskal.test(idade ~ mood, data = metadata)
-kruskal_idade
+wilcox.test(idade ~ thdico, data = metadata)
+
+wilcox.test(anosestudo ~ thdico, data = metadata)
+
+wilcox.test(IMC ~ thdico, data = metadata)
 ```
 
 ```{r}
-kruskal_anos <- kruskal.test(anosestudo ~ mood, data = metadata)
-kruskal_anos
+wilcox.test(idade ~ thdico, data = metadata, correct = FALSE)
+
+wilcox.test(anosestudo ~ thdico, data = metadata, correct = FALSE)
+
+wilcox.test(IMC ~ thdico, data = metadata, correct = FALSE)
 ```
+
+
 ## Categorical variables table
 
 Absolute and relative frequency table
@@ -233,32 +333,41 @@ Absolute and relative frequency table
 library(janitor)
 
 freq_table <- function(data, var) {
+  
   data %>%
-    tabyl({{ var }}, mood) %>%            
-    adorn_totals(where = c("row", "col")) %>%  
-    adorn_percentages(denominator = "col") %>% 
-    adorn_pct_formatting(digits = 1) %>%     
-    adorn_ns()                                 
+    filter(!is.na({{ var }})) %>%
+    tabyl({{ var }}, thdico) %>%
+    adorn_totals(where = c("row", "col")) %>%
+    adorn_percentages(denominator = "col") %>%
+    adorn_pct_formatting(digits = 1) %>%
+    adorn_ns(position = "front") %>%
+    select({{ var }}, Total, `Mood Disorder`, Control)
 }
 
-
-tab_corpele   <- freq_table(metadata, corpele)
-tab_sexo      <- freq_table(metadata, sexo)
-tab_ABEP      <- freq_table(metadata, ABEP)
+tab_corpele <- freq_table(metadata, corpele)
+tab_sexo <- freq_table(metadata, sexo)
+tab_ABEP <- freq_table(metadata, ABEP)
 tab_histpsifam <- freq_table(metadata, histpsifam)
 
+tab_a20medicpsi <- freq_table(metadata, a20medicpsi)
+tab_antib <- freq_table(metadata, antib)
+tab_suplem <- freq_table(metadata, suplem)
 
 tab_corpele
 tab_sexo
 tab_ABEP
 tab_histpsifam
 
+tab_a20medicpsi
+tab_antib
+tab_suplem
+
 ```
 ## Chi-square
 
-Age by mood
+Sex by thdico
 ```{r}
-tab_sexo <- table(metadata$sexo, metadata$mood)
+tab_sexo <- table(metadata$sexo, metadata$thdico)
 tab_sexo
 ```
 
@@ -269,12 +378,13 @@ chisq.test(tab_sexo)$expected
 
 ```{r}
 chisq.test(tab_sexo)
+chisq.test(tab_sexo, correct = FALSE)
 fisher.test(tab_sexo)
 ```
-Skin color by mood
+Skin color by thdico
 
 ```{r}
-tab_corpele <- table(metadata$corpele, metadata$mood)
+tab_corpele <- table(metadata$corpele, metadata$thdico)
 tab_corpele
 ```
 
@@ -284,13 +394,14 @@ chisq.test(tab_corpele)$expected
 
 ```{r}
 chisq.test(tab_corpele)
+chisq.test(tab_corpele, correct = FALSE)
 fisher.test(tab_corpele)
 ```
 
-Socioeconomic status by mood
+Socioeconomic status by thdico
 
 ```{r}
-tab_abep <- table(metadata$ABEP, metadata$mood)
+tab_abep <- table(metadata$ABEP, metadata$thdico)
 tab_abep
 ```
 
@@ -298,15 +409,16 @@ tab_abep
 chisq.test(tab_abep)$expected
 ```
 
-
 ```{r}
 chisq.test(tab_abep)
+chisq.test(tab_abep, correct = FALSE)
 fisher.test(tab_abep)
 ```
-History of familial psychiatric disorder by mood
+
+Family history by thdico
 
 ```{r}
-tab_hist <- table(metadata$histpsifam, metadata$mood)
+tab_hist <- table(metadata$histpsifam, metadata$thdico)
 tab_hist
 ```
 
@@ -316,6 +428,74 @@ chisq.test(tab_hist)$expected
 
 ```{r}
 chisq.test(tab_hist)
+chisq.test(tab_hist, correct = FALSE)
 fisher.test(tab_hist)
+```
+
+Psychiatric medication
+
+```{r}
+tab_med <- table(
+  metadata$a20medicpsi,
+  metadata$thdico
+)
+
+tab_med
+```
+
+```{r}
+chisq.test(tab_med)$expected
+```
+
+```{r}
+chisq.test(tab_med)
+chisq.test(tab_med, correct = FALSE)
+fisher.test(tab_med)
+```
+
+
+Antibiotics
+
+```{r}
+tab_antib <- table(
+  metadata$antib,
+  metadata$thdico
+)
+
+tab_antib
+```
+
+```{r}
+chisq.test(tab_antib)$expected
+```
+
+
+```{r}
+chisq.test(tab_antib)
+chisq.test(tab_antib, correct = FALSE)
+fisher.test(tab_antib)
+```
+
+
+Prebiotic/probiotic/synbiotic
+
+```{r}
+tab_suplem <- table(
+  metadata$suplem,
+  metadata$thdico
+)
+
+tab_suplem
+```
+
+```{r}
+chisq.test(tab_suplem)$expected
+```
+
+
+```{r}
+chisq.test(tab_suplem)
+chisq.test(tab_suplem, correct = FALSE)
+fisher.test(tab_suplem)
 ```
 
