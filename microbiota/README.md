@@ -158,7 +158,7 @@ Evaluates **sex × Mood Disorder interaction effects** on ASV abundance.
 The DESeq2 model is:
 
 ```text
-Sex + Mood Disorder + Sex × Mood Disorder
+ABEP + a20medicpsi + IMC_c + antib + suplem + sexo + Mood_Disorder + sexo:Mood_Disorder
 ```
 
 The interaction term evaluates whether the association between Mood Disorder status and ASV abundance differs according to sex.
