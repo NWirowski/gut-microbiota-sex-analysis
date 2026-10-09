@@ -17,325 +17,197 @@ For machine learning, BD and MDD are combined into a single binary **Mood Disord
 
 ## Predictor Sets
 
-Two predictor sets are evaluated.
+Three predictor sets are evaluated in the revised binary classification analysis.
 
 ### Combined model
 
 The **combined model** uses:
 
-* 2,496 microbiome ASVs
-* Sex
+- 2,496 microbiome ASVs
+- Sex
 
-Thus, the feature matrix contains the complete microbiome profile together with sex as an additional predictor.
+The feature matrix combines the microbiome profile with sex as an additional predictor.
 
 ### Microbiome-only model
 
 The **microbiome-only model** uses:
 
-* 2,496 microbiome ASVs
+- 2,496 microbiome ASVs
 
-Sex is not included as a predictor.
+Sex is excluded from the feature matrix. These analyses are implemented in scripts with the `_nosex` suffix.
 
-The microbiome-only analyses are implemented in scripts with the `_nosex` suffix.
+### Sex-only model
 
-| Script type      | Predictors       |
-| ---------------- | ---------------- |
-| Standard scripts | 2,496 ASVs + sex |
-| `_nosex` scripts | 2,496 ASVs only  |
+The **sex-only model** uses:
 
-The two predictor sets allow assessment of model performance with and without sex included as an additional feature.
+- Sex as the sole predictor
 
-## Data Preparation
+These models provide a baseline for evaluating how well sex alone distinguishes participants with Mood Disorder from Healthy Controls. They do not use microbiome ASVs and do not apply SMOTETomek, PCA, or UMAP.
 
-The machine learning analyses use the `table.csv` file.
+The sex-only analyses are implemented in scripts with the `_sexonly` suffix.
 
-Before model fitting:
+| Predictor set | Features |
+|---|---|
+| Combined model | 2,496 ASVs + sex |
+| Microbiome-only model | 2,496 ASVs |
+| Sex-only model | Sex only |
 
-1. The original diagnostic variable is recoded into Control and Mood Disorder.
-2. The participant identifier (`id`) is removed.
-3. Sex is excluded from the microbiome-only feature matrix.
-4. ASV counts are converted to **relative abundance** by row normalization.
-5. Sex is added as a binary predictor only in the combined models.
-
-The resulting microbiome feature matrix contains approximately **2,496 ASVs**.
-
-## Machine Learning Algorithms
-
-Thirteen supervised machine learning algorithms are evaluated:
-
-* Logistic Regression
-* Support Vector Classifier (SVC)
-* Multilayer Perceptron (MLP)
-* HistGradientBoosting
-* Gaussian Naive Bayes
-* Decision Tree
-* Bagging
-* AdaBoost
-* K-Nearest Neighbors (KNN)
-* CatBoost
-* Random Forest
-* Extra Trees
-* Gradient Boosting
-
-The models use predefined hyperparameters that are kept consistent across validation strategies.
+Comparing these predictor sets helps characterize classification performance using the microbiome, sex, or both.
 
 ## Preprocessing Configurations
 
-Each algorithm is evaluated across eight preprocessing configurations based on three preprocessing components:
+For the microbiome-based analyses, the algorithms are evaluated using preprocessing configurations based on three components:
 
-* **SMOTETomek** — class-imbalance correction
-* **PCA** — linear dimensionality reduction
-* **UMAP** — nonlinear dimensionality reduction
+- **SMOTETomek** — class-imbalance handling
+- **PCA** — linear dimensionality reduction
+- **UMAP** — nonlinear dimensionality reduction
 
-All eight combinations are evaluated:
+The eight possible combinations are:
 
 | SMOTETomek | PCA | UMAP |
-| ---------- | --- | ---- |
-| No         | No  | No   |
-| No         | No  | Yes  |
-| Yes        | No  | No   |
-| Yes        | No  | Yes  |
-| No         | Yes | No   |
-| No         | Yes | Yes  |
-| Yes        | Yes | No   |
-| Yes        | Yes | Yes  |
+|---|---|---|
+| No | No | No |
+| No | No | Yes |
+| Yes | No | No |
+| Yes | No | Yes |
+| No | Yes | No |
+| No | Yes | Yes |
+| Yes | Yes | No |
+| Yes | Yes | Yes |
 
-Preprocessing transformations are fitted using the training data within each validation split and then applied to the corresponding test data.
+**Important:** The `_sexonly` scripts use only the configuration with all three components disabled. Therefore, they evaluate the algorithms using sex alone, without resampling or dimensionality reduction. The eight configurations listed above do not apply to these scripts.
 
 ## Validation Strategies
 
-Four validation strategies are implemented.
+Four validation strategies are implemented across the machine learning analyses: Leave-One-Out Cross-Validation (LOO), Stratified K-Fold Cross-Validation (SKF), Repeated Stratified K-Fold Cross-Validation (RSKF), and Train-Test Split (TTS).
 
-### Leave-One-Out Cross-Validation
+### Leave-One-Out Cross-Validation (LOO)
 
-Scripts:
+The LOO analyses train each model on all but one participant and use the held-out participant for prediction. This process is repeated until every participant has been held out once.
 
-* `ml_r1_th_loo.py`
-* `ml_r1_th_loo_nosex.py`
+The sex-only implementation is:
 
-Leave-One-Out Cross-Validation (LOO) is performed across the complete sample.
+- `ml_r2_th_loo_sexonly.py`
 
-Each participant is left out once as the test observation, while the remaining participants are used for training.
+The script calculates performance metrics from the aggregated individual-level LOO predictions. It estimates 95% percentile confidence intervals using 2,000 bootstrap resamples of these predictions, sampled with replacement.
 
-Performance is calculated from the aggregated individual LOO predictions.
+The reported metrics are:
 
-For uncertainty estimation, **2,000 bootstrap resamples** of the aggregated LOO predictions are generated with replacement. **95% percentile confidence intervals** are calculated for:
+- Accuracy
+- Balanced accuracy
+- Recall
+- Precision
+- F1-score
+- ROC-AUC
 
-* Accuracy
-* Balanced accuracy
-* Recall
-* Precision
-* F1-score
-* ROC-AUC
+### Stratified K-Fold Cross-Validation (SKF)
 
-### Stratified K-Fold Cross-Validation
+The SKF analyses use **10 folds**, preserving the class distribution across folds. Performance is calculated separately for each fold and summarized using the mean and standard deviation (SD).
 
-Scripts:
+The sex-only implementation is:
 
-* `ml_r1_th_skf.py`
-* `ml_r1_th_skf_nosex.py`
+- `ml_r2_th_skf_sexonly.py`
 
-A **10-fold Stratified K-Fold Cross-Validation** is performed.
+The reported metrics are accuracy, balanced accuracy, recall, precision, F1-score, and ROC-AUC.
 
-The class distribution is preserved across folds.
+### Repeated Stratified K-Fold Cross-Validation (RSKF)
 
-Performance is calculated for each fold and summarized using:
+The RSKF analyses use:
 
-* Mean
-* Standard deviation (SD)
+- 10 folds
+- 3 repetitions
+- 30 fold evaluations in total
 
-The following metrics are reported:
+Performance is calculated for each fold and repetition and summarized using the mean and SD.
 
-* Accuracy
-* Balanced accuracy
-* Recall
-* Precision
-* F1-score
-* ROC-AUC
+The sex-only implementation is:
 
-### Repeated Stratified K-Fold Cross-Validation
+- `ml_r2_th_rskf_sexonly.py`
 
-Scripts:
+The reported metrics are accuracy, balanced accuracy, recall, precision, F1-score, and ROC-AUC.
 
-* `ml_r1_th_rskf.py`
-* `ml_r1_th_rskf_nosex.py`
+### Train-Test Split (TTS)
 
-Repeated Stratified K-Fold Cross-Validation is performed using:
+The TTS analyses use a fixed **80% training / 20% test split**, with `random_state = 42`.
 
-* 10 folds
-* 3 repetitions
-* 30 fold evaluations in total
+The sex-only implementation is:
 
-Performance is calculated for each fold and repetition and summarized using the **mean and standard deviation**.
+- `ml_r2_th_tts_sexonly.py`
 
-The following metrics are reported:
+Performance is evaluated on the held-out test set. To estimate uncertainty, the script generates 2,000 subsamples containing 90% of the test observations, sampled without replacement, and calculates 95% percentile confidence intervals.
 
-* Accuracy
-* Balanced accuracy
-* Recall
-* Precision
-* F1-score
-* ROC-AUC
-
-### Train-Test Split
-
-Scripts:
-
-* `ml_r1_th_tts.py`
-* `ml_r1_th_tts_nosex.py`
-
-A fixed **80% training / 20% test split** is used with `random_state = 42`.
-
-The training set is used for model fitting and preprocessing, while the test set is retained for performance evaluation.
-
-To quantify uncertainty in the test-set performance estimates, **2,000 repeated subsamples containing 90% of the test observations** are generated without replacement.
-
-The resulting **95% percentile confidence intervals** are reported for:
-
-* Accuracy
-* Balanced accuracy
-* Recall
-* Precision
-* F1-score
-* ROC-AUC
-
-## Performance Metrics
-
-The machine learning analyses report:
-
-* **Accuracy**
-* **Balanced accuracy**
-* **Recall**
-* **Precision**
-* **F1-score**
-* **ROC-AUC**
-
-The **F1-score** is used as the primary metric for comparing model performance because it jointly considers precision and recall.
+The reported metrics are accuracy, balanced accuracy, recall, precision, F1-score, and ROC-AUC.
 
 ## Script Overview
 
-| Script                    | Predictor set             | Validation / Analysis                |
-| ------------------------- | ------------------------- | ------------------------------------ |
-| `ml_r1_th_loo.py`         | 2,496 ASVs + sex          | Leave-One-Out CV                     |
-| `ml_r1_th_loo_nosex.py`   | 2,496 ASVs                | Leave-One-Out CV                     |
-| `ml_r1_th_skf.py`         | 2,496 ASVs + sex          | 10-fold Stratified CV                |
-| `ml_r1_th_skf_nosex.py`   | 2,496 ASVs                | 10-fold Stratified CV                |
-| `ml_r1_th_rskf.py`        | 2,496 ASVs + sex          | 10-fold × 3-repetition Stratified CV |
-| `ml_r1_th_rskf_nosex.py`  | 2,496 ASVs                | 10-fold × 3-repetition Stratified CV |
-| `ml_r1_th_tts.py`         | 2,496 ASVs + sex          | 80/20 Train-Test Split               |
-| `ml_r1_th_tts_nosex.py`   | 2,496 ASVs                | 80/20 Train-Test Split               |
-| `r1_curva_roc_revista.py` | Selected ASV models ± sex | LOO ROC analysis                     |
+The scripts below implement the sex-only baseline for the revised Mood Disorder versus Control classification.
 
-## ROC Curve Analysis
+| Script | Predictor set | Validation strategy | Output |
+|---|---|---|---|
+| `ml_r2_th_loo_sexonly.py` | Sex only | Leave-One-Out CV | `df_results_LOO_sex_only.csv` |
+| `ml_r2_th_skf_sexonly.py` | Sex only | 10-fold Stratified CV | `df_results_SKF_SexOnly.csv` |
+| `ml_r2_th_rskf_sexonly.py` | Sex only | 10-fold × 3-repetition Stratified CV | `df_results_RSKF_SexOnly.csv` |
+| `ml_r2_th_tts_sexonly.py` | Sex only | 80/20 Train-Test Split | `df_results_TTS_SexOnly.csv` |
 
-### `r1_curva_roc_revista.py`
+The existing combined and microbiome-only scripts remain documented separately. Their predictor sets and preprocessing configurations should not be inferred from the sex-only scripts.
 
-This script performs a focused ROC analysis using **Leave-One-Out Cross-Validation** for selected model and preprocessing configurations.
+## Sex-Only Baseline Analysis
 
-The analysis evaluates both:
+The sex-only models use the same 13 algorithm families as the other classification analyses:
 
-* Models with sex included
-* Microbiome-only models without sex
+- Logistic Regression
+- Support Vector Classifier (SVC)
+- Multilayer Perceptron (MLP)
+- HistGradientBoosting
+- Gaussian Naive Bayes
+- Decision Tree
+- Bagging
+- AdaBoost
+- K-Nearest Neighbors (KNN)
+- CatBoost
+- Random Forest
+- Extra Trees
+- Gradient Boosting
 
-The selected configurations include:
+Although the same algorithm families are evaluated, the sex-only feature matrix contains a single binary predictor. PCA and UMAP are disabled, and SMOTETomek is not applied.
 
-* Logistic Regression + SMOTETomek + PCA
-* Logistic Regression + SMOTETomek
-* SVC + SMOTETomek
-* SVC + SMOTETomek + UMAP
-* SVC + SMOTETomek + PCA
-
-For each selected configuration, the script:
-
-1. Performs LOO cross-validation.
-2. Stores the individual participant-level predictions.
-3. Calculates aggregated performance metrics.
-4. Calculates ROC-AUC.
-5. Generates the ROC curve from the aggregated LOO predictions.
-6. Calculates 95% bootstrap confidence intervals using 2,000 bootstrap resamples.
-7. Saves the complete analysis to a checkpoint file.
-
-The analysis is performed both with and without sex, resulting in **10 model configurations** in total.
-
-The script generates:
-
-* `LOO_ROC_selected_results.pkl` — checkpoint containing complete results and ROC information
-* `df_results_LOO_ROC_selected.csv` — summary of selected model results
-* `Figure_ROC_LOO_selected.png` — ROC curve figure with panels for models with and without sex
-
-The ROC figure uses black-and-white line styles to distinguish the selected model configurations.
+The sex-only analysis serves as a baseline for contextualizing the predictive performance of models that include microbiome features. Differences in performance alone do not establish that the microbiome provides a statistically significant incremental contribution; that conclusion would require an appropriate formal comparison.
 
 ## Outputs
 
-The validation scripts generate CSV files containing model performance results.
+Each sex-only validation script saves a CSV file containing model performance results.
 
-Typical output files include:
+The output tables include the validation strategy, model name, preprocessing flags, and performance metrics. Depending on the validation strategy, they also include standard deviations, confidence intervals, and information about the number of folds, test observations, bootstrap resamples, or test-set subsamples.
 
-* `df_results_LOO.csv`
-* `df_results_StratifiedKFold.csv`
-* `df_results_RSKF_mean_SD.csv`
-* `df_results.csv`
-* `df_results_LOO_ROC_selected.csv`
+The CSV output files are:
 
-Depending on the validation strategy, the result tables include:
-
-* Validation strategy
-* Model
-* Preprocessing configuration
-* Performance metrics
-* Confidence intervals or standard deviations
-* Number of folds/repetitions or test observations
-* Bootstrap/subsampling parameters where applicable
-
-## Reproducibility
-
-The analyses use fixed random seeds where applicable, including:
-
-* `random_state = 42` for model fitting and validation procedures
-* `random_state = 123` for bootstrap and test-set subsampling procedures
-
-The scripts were developed for execution in a Python/Google Colab environment.
-
-Required packages include:
-
-* `pandas`
-* `numpy`
-* `scikit-learn`
-* `imbalanced-learn`
-* `umap-learn`
-* `catboost`
-* `tqdm`
-* `matplotlib`
-* `plotly`
-
-The input file `table.csv` must be available in the working directory.
+- `df_results_LOO_sex_only.csv`
+- `df_results_SKF_SexOnly.csv`
+- `df_results_RSKF_SexOnly.csv`
+- `df_results_TTS_SexOnly.csv`
 
 ## Analysis Overview
 
-| Component                    | Specification                    |
-| ---------------------------- | -------------------------------- |
-| Outcome                      | Mood Disorder vs Control         |
-| Sample                       | 93 participants                  |
-| Microbiome predictors        | 2,496 ASVs                       |
-| Combined predictors          | 2,496 ASVs + sex                 |
-| Microbiome-only predictors   | 2,496 ASVs                       |
-| Machine learning algorithms  | 13                               |
-| Preprocessing configurations | 8                                |
-| Validation strategies        | LOO, SKF, RSKF, TTS              |
-| LOO uncertainty              | 2,000 bootstrap resamples        |
-| SKF summary                  | Mean ± SD                        |
-| RSKF                         | 10 folds × 3 repetitions         |
-| TTS                          | 80% training / 20% test          |
-| TTS uncertainty              | 2,000 × 90% test-set subsampling |
-| Confidence interval          | 95% percentile CI                |
-| Primary performance metric   | F1-score                         |
+| Component | Specification |
+|---|---|
+| Outcome | Mood Disorder vs Control |
+| Predictor sets | Combined, microbiome-only, sex-only |
+| Microbiome predictors | 2,496 ASVs |
+| Sex-only predictors | One binary sex indicator |
+| Machine learning algorithms | 13 |
+| Validation strategies | LOO, SKF, RSKF, TTS |
+| SKF | 10 folds; mean ± SD |
+| RSKF | 10 folds × 3 repetitions; mean ± SD |
+| LOO uncertainty | 2,000 bootstrap resamples of aggregated predictions |
+| TTS | 80% training / 20% test |
+| TTS uncertainty | 2,000 subsamples of 90% of the test set |
+| Confidence intervals | 95% percentile intervals |
+| Primary performance metric | F1-score |
 
-## Relation to the Original Analyses
+## Reproducibility
 
-The machine learning scripts in this folder correspond to the **revised Mood Disorder vs Control analysis**.
+The scripts use fixed random seeds where applicable, including `random_state = 42` for model fitting and validation procedures and `random_state = 123` for the LOO bootstrap and TTS subsampling procedures.
 
-The previous machine learning analyses based on separate Bipolar Disorder, Major Depressive Disorder, and Control groups are retained in:
+The analyses were developed for execution in Python/Google Colab. Required packages depend on the specific script and include `pandas`, `numpy`, `scikit-learn`, `imbalanced-learn`, `umap-learn`, `catboost`, and `tqdm`. Some scripts may import additional packages.
 
-[`/original_group_analyses/machinelearning`](../original_group_analyses/machinelearning/)
-
-The revised analyses were developed to address the limitations associated with the small diagnostic subgroup sizes and to provide more robust performance estimates through multiple validation strategies and uncertainty estimation.
+The input file `table.csv` must be available in the working directory. The file must contain the diagnostic outcome, sex, participant identifier (`id`), and, for microbiome-based analyses, the ASV features required by the corresponding script.
